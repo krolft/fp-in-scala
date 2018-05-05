@@ -5,6 +5,7 @@ import scala.annotation.tailrec
 sealed trait List[+A]
 
 case object Nil extends List[Nothing]
+
 case class Cons[+A](head: A, tail: List[A]) extends List[A]
 
 object List {
@@ -94,7 +95,7 @@ object List {
     - add a short-circuiting predicate and or collapsing element
     - scan for 0.0 before folding
    */
-  def product2(ns: List[Double]) =
+  def product2(ns: List[Double]): Double =
     foldRight(ns, 1.0)(_ * _)
 
   def setHead[A](as: List[A], head: A): List[A] =
@@ -120,11 +121,11 @@ object List {
         case Cons(h, t) => go(t, Cons(h, newList))
       }
     }
+
     go(list, Nil)
   }
 
   def reverse[A](list: List[A]): List[A] = {
-    println(s"reverse: $list")
     foldLeft(list, List[A]())((newList, h) => Cons(h, newList))
   }
 
@@ -143,6 +144,7 @@ object List {
         case Cons(h, t) => go(t, f(h, acc))
       }
     }
+
     go(list, z)
   }
 
@@ -284,7 +286,7 @@ object List {
 
   // 3.21
   def filterWithFlatMap[A](list: List[A])(p: A => Boolean): List[A] = {
-    flatMap(list)((a) => if (p(a)) List(a) else List())
+    flatMap(list)(a => if (p(a)) List(a) else List())
   }
 
   // 3.22
@@ -295,6 +297,7 @@ object List {
         case _ => reverse(newList)
       }
     }
+
     go(list1, list2, List())
   }
 
@@ -306,6 +309,7 @@ object List {
         case _ => reverse(newList)
       }
     }
+
     go(list1, list2, List())
   }
 
@@ -318,7 +322,7 @@ object List {
         zipWith(xs, sub)((x, s) => if (x == s) 0 else 1) match {
           case res if List.sum(res) == 0 => true
           case _ => hasSubsequence(t, sub)
-      }
+        }
     }
   }
 
