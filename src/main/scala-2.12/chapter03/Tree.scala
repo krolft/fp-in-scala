@@ -36,7 +36,7 @@ object Tree {
 
   // 3.29
   def maximumUsingFold(tree: Tree[Int]): Int = {
-    fold(tree)(a => a)(_ max _)
+    fold(tree)(identity)(_ max _)
   }
 
 
