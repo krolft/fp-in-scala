@@ -1,3 +1,5 @@
+package chapter03
+
 import org.scalatest._
 
 class ListTest extends FlatSpec with Matchers {
