@@ -15,14 +15,14 @@ object List {
       // a) throwing an exception
       // b) additionally adding a method tailOption
       case Nil => Nil
-      case Cons(x, xs) => xs
+      case Cons(_, xs) => xs
     }
 
   def drop[A](list: List[A], n: Int): List[A] = {
     @tailrec
     def go(i: Int, as: List[A]): List[A] = {
       as match {
-        case Cons(x, xs) if i < n => go(i + 1, xs)
+        case Cons(_, xs) if i < n => go(i + 1, xs)
         case _ => as
       }
     }

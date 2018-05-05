@@ -6,7 +6,7 @@ object Chapter03 {
       case Cons(x, Cons(2, Cons(4, _))) => x
       case Nil => 42
       case Cons(x, Cons(y, Cons(3, Cons(4, _)))) => x + y
-      case Cons(h, t) => 43
+      case Cons(_, _) => 43
       case _ => 44
     })
 
