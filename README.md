@@ -1,3 +1,3 @@
 # fp-in-scala
 
-excercises and tests from the book
+solutions to the excercises from the book and tests
