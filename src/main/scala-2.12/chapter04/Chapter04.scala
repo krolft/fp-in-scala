@@ -1,10 +1,13 @@
 package chapter04
 
 object Chapter04 {
-  def variance(xs: Seq[Double]): Option[Double] = xs match {
-    case Nil => None
-    case _ =>
-      val mean = xs.sum / xs.length
-      Some(xs.map(x => math.pow(x - mean, 2)).sum / xs.length)
+  // 4.1
+  def variance(xs: Seq[Double]): Option[Double] = {
+    def mean(xs: Seq[Double]): Option[Double] = xs match {
+      case Nil => None
+      case _ => Some(xs.sum / xs.length)
+    }
+
+    mean(xs).flatMap(m => mean(xs.map(x => math.pow(x - m, 2))))
   }
 }
