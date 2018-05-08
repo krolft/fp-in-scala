@@ -70,18 +70,6 @@ object MyModule {
   }
 
   def partial[A, B, C](a: A, f: (A, B) => C): B => C =
-<<<<<<< HEAD
-    (b) => f(a, b)
-
-  def curry[A, B, C](f: (A, B) => C): A => (B => C) =
-    (a) => (b) => f(a, b)
-
-  def uncurry[A, B, C](f: A => (B => C)): (A, B) => C =
-    (a, b) => f(a)(b)
-
-  def compose[A, B, C](f: A => B, g: B => C): (A) => C =
-    (a) => g(f(a))
-=======
     b => f(a, b)
 
   def curry[A, B, C](f: (A, B) => C): A => B => C =
@@ -92,7 +80,6 @@ object MyModule {
 
   def compose[A, B, C](f: A => B, g: B => C): A => C =
     a => g(f(a))
->>>>>>> 10b7e907080f169bffc46c5b06e510d4170f4dc0
 
   def main(args: Array[String]) {
     println(format("absolute", -7, abs))

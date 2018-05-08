@@ -14,11 +14,7 @@ object MainProcedureReturnsUnit {
   }
 
   // see https://stackoverflow.com/questions/19386964/i-want-to-get-the-type-of-a-variable-at-runtime
-<<<<<<< HEAD
-  def f[T](v: T)(implicit ev: ClassTag[T]) = {
-=======
   def f[T](v: T)(implicit ev: ClassTag[T]): String = {
->>>>>>> 10b7e907080f169bffc46c5b06e510d4170f4dc0
     ev.toString
   }
 
