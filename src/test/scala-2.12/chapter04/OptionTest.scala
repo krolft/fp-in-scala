@@ -4,7 +4,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class OptionTest extends FlatSpec with Matchers {
   "Mapping an option" should "return None for a None" in {
-    val none : Option[Int] = None
+    val none: Option[Int] = None
     none.map(_ + 1) shouldBe None
   }
 
@@ -12,12 +12,12 @@ class OptionTest extends FlatSpec with Matchers {
     Some(1).map(_ + 1) shouldBe Some(2)
   }
 
-  it should "not flatten options" in  {
+  it should "not flatten options" in {
     Some(1).map(a => Some(a + 1)) shouldBe Some(Some(2))
   }
 
   "Flat mapping an option" should "return None for a None" in {
-    val none : Option[Int] = None
+    val none: Option[Int] = None
     none.flatMap(a => Some(a + 1)) shouldBe None
   }
 
@@ -70,26 +70,52 @@ class OptionTest extends FlatSpec with Matchers {
   }
 
   "Sequence a list of options into an option of list" should "return a Some of an empty list" in {
-    Option.sequence(List[Option[Int]]()) shouldBe Some(List())
+    Option.sequenceTailRec(List[Option[Int]]()) shouldBe Some(List())
     Option.sequenceRec(List[Option[Int]]()) shouldBe Some(List())
+    Option.sequenceUsingTraverse(List[Option[Int]]()) shouldBe Some(List())
   }
 
   it should "return None for a list containing only a None" in {
-    Option.sequence(List[Option[Int]](None)) shouldBe None
+    Option.sequenceTailRec(List[Option[Int]](None)) shouldBe None
     Option.sequenceRec(List[Option[Int]](None)) shouldBe None
+    Option.sequenceUsingTraverse(List[Option[Int]](None)) shouldBe None
   }
 
   it should "return None for a list containing a None independent from where the None is located" in {
-    Option.sequence(List(None, Some(1), Some(2))) shouldBe None
-    Option.sequence(List(Some(1), None, Some(2))) shouldBe None
-    Option.sequence(List(Some(1), Some(2), None)) shouldBe None
+    Option.sequenceTailRec(List(None, Some(1), Some(2))) shouldBe None
+    Option.sequenceTailRec(List(Some(1), None, Some(2))) shouldBe None
+    Option.sequenceTailRec(List(Some(1), Some(2), None)) shouldBe None
 
     Option.sequenceRec(List(None, Some(1), Some(2))) shouldBe None
     Option.sequenceRec(List(Some(1), None, Some(2))) shouldBe None
     Option.sequenceRec(List(Some(1), Some(2), None)) shouldBe None
+
+    Option.sequenceRec(List(None, Some(1), Some(2))) shouldBe None
+    Option.sequenceRec(List(Some(1), None, Some(2))) shouldBe None
+    Option.sequenceUsingTraverse(List(Some(1), Some(2), None)) shouldBe None
   }
 
   it should "return a Some containing the list of values in the some order if there is no None" in {
-    Option.sequence(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+    Option.sequenceTailRec(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+    Option.sequenceRec(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+    Option.sequenceUsingTraverse(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+  }
+
+  "Traversing a list of values with a function producing an Option" should "return a Some of an empty list" in {
+    Option.traverse(List[String]())(str => Chapter04.Try(str.toInt)) shouldBe Some(List())
+  }
+
+  it should "return None for a list containing only a None" in {
+    Option.traverse(List[String]("abc"))(str => Chapter04.Try(str.toInt)) shouldBe None
+  }
+
+  it should "return None for a list containing a None independent from where the None is located" in {
+    Option.traverse(List("abc", "1", "2"))(str => Chapter04.Try(str.toInt)) shouldBe None
+    Option.traverse(List("1", "abc", "2"))(str => Chapter04.Try(str.toInt)) shouldBe None
+    Option.traverse(List("1", "2", "abc"))(str => Chapter04.Try(str.toInt)) shouldBe None
+  }
+
+  it should "return a Some containing the list of values in the some order if there is no None" in {
+    Option.traverse(List("1", "2", "3"))(str => Chapter04.Try(str.toInt)) shouldBe Some(List(1, 2, 3))
   }
 }
