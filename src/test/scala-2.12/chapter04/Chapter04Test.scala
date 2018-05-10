@@ -11,7 +11,7 @@ class Chapter04Test extends FlatSpec with Matchers {
     Chapter04.variance(List(2)) shouldBe Some(0)
   }
 
-  it should "work for 1, 3, 5)" in {
+  it should "work for (1, 3, 5)" in {
     Chapter04.variance(List(1, 3, 5)) shouldBe Some(8.0 / 3)
   }
 }
