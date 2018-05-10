@@ -5,10 +5,14 @@ package chapter04
  */
 sealed trait Option[+A] {
   def map[B](f: A => B): Option[B]
+
   def flatMap[B](f: A => Option[B]): Option[B]
+
   // for 'default: => B' see test(s)
   def getOrElse[B >: A](default: => B): B
+
   def orElse[B >: A](ob: => Option[B]): Option[B]
+
   def filter(p: A => Boolean): Option[A]
 }
 
@@ -34,4 +38,28 @@ case object None extends Option[Nothing] {
   override def orElse[B >: Nothing](ob: => Option[B]): Option[B] = ob
 
   override def filter(p: Nothing => Boolean): Option[Nothing] = None
+}
+
+object Option {
+  // 4.4
+  def sequenceRec[A](as: List[Option[A]]): Option[List[A]] = {
+    as match {
+      case None :: _ => None
+      case Some(a) :: tail => sequence(tail).map(t => a :: t)
+      case Nil => Some(Nil)
+    }
+  }
+
+  // 4.4
+  def sequence[A](as: List[Option[A]]): Option[List[A]] = {
+    def go(list: List[Option[A]], acc: Option[List[A]]): Option[List[A]] = {
+      list match {
+        case None :: _ => None
+        case Some(ha) :: tail => go(tail, acc.map(accList => ha :: accList))
+        case Nil => acc.map(_.reverse)
+      }
+    }
+
+    go(as, Some(Nil))
+  }
 }

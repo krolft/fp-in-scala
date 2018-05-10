@@ -15,7 +15,7 @@ object Chapter04 {
 
   val absOpt: Option[Double] => Option[Double] = lift(Math.abs)
 
-  // again: writing 'a: => A' instead of 'a: A' makes a being evaluated (possibly raising an exception)
+  // again: writing 'a: => A' instead of 'a: A' makes 'a' being evaluated (possibly raising an exception)
   // within our method, and not where Try is called
   // calling Try(1 / 0) will raise an exception within the Try method and not where 'Try(1 / 0)' is stated
   def Try[A](a: => A): Option[A] = {

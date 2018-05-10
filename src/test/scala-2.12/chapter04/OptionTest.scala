@@ -68,4 +68,28 @@ class OptionTest extends FlatSpec with Matchers {
   it should "return none for a predicate based on the value evaluating to false" in {
     Some(1).filter(_ % 2 == 0) shouldBe None
   }
+
+  "Sequence a list of options into an option of list" should "return a Some of an empty list" in {
+    Option.sequence(List[Option[Int]]()) shouldBe Some(List())
+    Option.sequenceRec(List[Option[Int]]()) shouldBe Some(List())
+  }
+
+  it should "return None for a list containing only a None" in {
+    Option.sequence(List[Option[Int]](None)) shouldBe None
+    Option.sequenceRec(List[Option[Int]](None)) shouldBe None
+  }
+
+  it should "return None for a list containing a None independent from where the None is located" in {
+    Option.sequence(List(None, Some(1), Some(2))) shouldBe None
+    Option.sequence(List(Some(1), None, Some(2))) shouldBe None
+    Option.sequence(List(Some(1), Some(2), None)) shouldBe None
+
+    Option.sequenceRec(List(None, Some(1), Some(2))) shouldBe None
+    Option.sequenceRec(List(Some(1), None, Some(2))) shouldBe None
+    Option.sequenceRec(List(Some(1), Some(2), None)) shouldBe None
+  }
+
+  it should "return a Some containing the list of values in the some order if there is no None" in {
+    Option.sequence(List(Some(1), Some(2), Some(3))) shouldBe Some(List(1, 2, 3))
+  }
 }
