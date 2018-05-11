@@ -42,7 +42,7 @@ object Chapter04 {
     }
   }
 
-  def Try[A](a: => A): Either[Exception, A] = {
+  def TryE[A](a: => A): Either[Exception, A] = {
     try Right(a)
     catch {
       case e: Exception => Left(e)
@@ -50,5 +50,5 @@ object Chapter04 {
   }
 
   def safeDivUsingTry(x: Int, y: Int): Either[Exception, Int] =
-    Try(x / y)
+    TryE(x / y)
 }
