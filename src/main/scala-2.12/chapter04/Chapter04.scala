@@ -51,4 +51,17 @@ object Chapter04 {
 
   def safeDivUsingTry(x: Int, y: Int): Either[Exception, Int] =
     TryE(x / y)
+
+  def calcSthBeingLifted(a: Int, b: Int): Double = 1.5 * (a + b)
+
+  def useForComprehensionToLift(intStrA: String, intStrB: String): Either[Exception, Double] =
+    for {
+      a <- TryE(intStrA.toInt)
+      b <- TryE(intStrB.toInt)
+    } yield calcSthBeingLifted(a, b)
+
+
+  def useMap2ToLift(intStrA: String, intStrB: String): Either[Exception, Double] =
+    TryE(intStrA.toInt).map2(TryE(intStrB.toInt))(calcSthBeingLifted)
+
 }
