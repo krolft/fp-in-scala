@@ -47,7 +47,7 @@ object Option {
   def sequenceRec[A](as: List[Option[A]]): Option[List[A]] = {
     as match {
       case None :: _ => None
-      case Some(a) :: tail => sequenceTailRec(tail).map(t => a :: t)
+      case Some(a) :: tail => sequenceRec(tail).map(t => a :: t)
       case Nil => Some(Nil)
     }
   }
@@ -81,13 +81,14 @@ object Option {
     @tailrec
     def go(list: List[A], acc: Option[List[B]]): Option[List[B]] = {
       list match {
-        case None :: _ => None
-        case h :: t => go(t, Chapter04.map2(acc, f(h))((accList, hb) => hb :: accList))
+        case h :: t => f(h) match {
+          case Some(b) => go(t, acc.map(l => b :: l))
+          case None => None
+        }
         case Nil => acc.map(_.reverse)
       }
     }
 
     go(as, Some(Nil))
   }
-
 }

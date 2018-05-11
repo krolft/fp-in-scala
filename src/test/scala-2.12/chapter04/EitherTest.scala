@@ -1,8 +1,5 @@
 package chapter04
 
-import java.lang
-import java.lang.ArithmeticException
-
 import org.scalatest.{FlatSpec, Matchers}
 
 class EitherTest extends FlatSpec with Matchers {
@@ -67,5 +64,58 @@ class EitherTest extends FlatSpec with Matchers {
       case Left(e) => e shouldBe a[ArithmeticException]
       case _ => fail
     }
+  }
+
+  "Sequence a list of Either-s into an Either of list" should "return a Right for an empty list" in {
+    Either.sequence(List[Either[String, Int]]()) shouldBe Right(List())
+    Either.sequenceUsingTraverse(List[Either[String, Int]]()) shouldBe Right(List())
+  }
+
+  it should "return a Left for a list containing only a Left" in {
+    Either.sequence(List[Either[String, Int]](Left("nope"))) shouldBe Left("nope")
+    Either.sequenceUsingTraverse(List[Either[String, Int]](Left("nope"))) shouldBe Left("nope")
+  }
+
+  it should "return Left for a list containing a Left independent from where the Left is located" in {
+    Either.sequence(List(Left("nope"), Right(1), Right(2))) shouldBe Left("nope")
+    Either.sequence(List(Right(1), Left("nope"), Right(2))) shouldBe Left("nope")
+    Either.sequence(List(Right(1), Right(2), Left("nope"))) shouldBe Left("nope")
+
+    Either.sequenceUsingTraverse(List(Left("nope"), Right(1), Right(2))) shouldBe Left("nope")
+    Either.sequenceUsingTraverse(List(Right(1), Left("nope"), Right(2))) shouldBe Left("nope")
+    Either.sequenceUsingTraverse(List(Right(1), Right(2), Left("nope"))) shouldBe Left("nope")
+  }
+
+  it should "return the first Left for a list containing more than one Left" in {
+    Either.sequence(List(Left("nope1"), Left("nope2"), Right(2))) shouldBe Left("nope1")
+    Either.sequence(List(Right(1), Left("nope1"), Left("nope2"))) shouldBe Left("nope1")
+    Either.sequence(List(Right(1), Left("nope1"), Left("nope2"))) shouldBe Left("nope1")
+
+    Either.sequenceUsingTraverse(List(Left("nope1"), Left("nope2"), Right(2))) shouldBe Left("nope1")
+    Either.sequenceUsingTraverse(List(Right(1), Left("nope1"), Left("nope2"))) shouldBe Left("nope1")
+    Either.sequenceUsingTraverse(List(Right(1), Left("nope1"), Left("nope2"))) shouldBe Left("nope1")
+  }
+
+  it should "return a Some containing the list of values in the some order if there is no None" in {
+    Either.sequence(List(Right(1), Right(2), Right(3))) shouldBe Right(List(1, 2, 3))
+    Either.sequenceUsingTraverse(List(Right(1), Right(2), Right(3))) shouldBe Right(List(1, 2, 3))
+  }
+
+  "Traversing a list of values with a function producing an Either" should "return a Right for an empty list" in {
+    Either.traverse(List[String]())(str => Chapter04.TryE(str.toInt)) shouldBe Right(List())
+  }
+
+  it should "return Left for a list containing only a Left" in {
+    Either.traverse(List[String]("abc"))(str => Chapter04.TryE(str.toInt)) shouldBe a[Left[_]]
+  }
+
+  it should "return Left for a list containing a Left independent from where the Left is located" in {
+    Either.traverse(List("abc", "1", "2"))(str => Chapter04.TryE(str.toInt)) shouldBe a[Left[_]]
+    Either.traverse(List("1", "abc", "2"))(str => Chapter04.TryE(str.toInt)) shouldBe a[Left[_]]
+    Either.traverse(List("1", "2", "abc"))(str => Chapter04.TryE(str.toInt)) shouldBe a[Left[_]]
+  }
+
+  it should "return a Right containing the list of values in the same order if there is no Left" in {
+    Either.traverse(List("1", "2", "3"))(str => Chapter04.TryE(str.toInt)) shouldBe Right(List(1, 2, 3))
   }
 }
