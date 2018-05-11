@@ -28,4 +28,27 @@ object Chapter04 {
   // 4.3
   def map2[A, B, C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] =
     a.flatMap(av => b.map(bv => f(av, bv)))
+
+  def mean(xs: IndexedSeq[Double]): Either[String, Double] =
+    if (xs.isEmpty)
+      Left("mean of empty list")
+    else
+      Right(xs.sum / xs.length)
+
+  def safeDiv(x: Int, y: Int): Either[Exception, Int] = {
+    try Right(x / y)
+    catch {
+      case e: Exception => Left(e)
+    }
+  }
+
+  def Try[A](a: => A): Either[Exception, A] = {
+    try Right(a)
+    catch {
+      case e: Exception => Left(e)
+    }
+  }
+
+  def safeDivUsingTry(x: Int, y: Int): Either[Exception, Int] =
+    Try(x / y)
 }
