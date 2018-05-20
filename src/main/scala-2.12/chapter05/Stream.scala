@@ -17,6 +17,11 @@ sealed trait Stream[+A] {
     case Empty => 0
     case Cons(_, t) => 1 + t().length
   }
+
+  def take(n: Long): Stream[A] = this match {
+    case Cons(h, t) if n > 0 => Cons(h, () => t().take(n - 1))
+    case _ => Empty
+  }
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
