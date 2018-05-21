@@ -26,7 +26,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     // Cons keep the counting mechanism, counting when head and tail are accessed.
     // When all cons have been evaluated to Cons, the Stream structure is built up in memory and cons counting stops
     // while the values may still be unevaluated (test with length)
-    mapEvalCount("cons") shouldBe 1
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 0
     mapEvalCount("headVal") shouldBe 0
@@ -35,7 +34,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
     stream.toList shouldBe List(1, 2, 3)
 
-    mapEvalCount("cons") shouldBe 3
     mapEvalCount("headTvs") shouldBe 3
     mapEvalCount("tailTvs") shouldBe 3
     mapEvalCount("headVal") shouldBe 3
@@ -44,7 +42,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
     stream.toList shouldBe List(1, 2, 3)
 
-    mapEvalCount("cons") shouldBe 3
     // traversing the structure will occur as often as elements times number calls to toList
     mapEvalCount("headTvs") shouldBe 6
     mapEvalCount("tailTvs") shouldBe 6
@@ -58,7 +55,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     val stream = Stream.cons(countEval(1), Stream.cons(countEval(2), Stream.cons(countEval(3), Stream.empty)))
 
     localEvalCount shouldBe 0
-    mapEvalCount("cons") shouldBe 1
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 0
     mapEvalCount("headVal") shouldBe 0
@@ -66,7 +62,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
     stream.toList shouldBe List(1, 2, 3)
     localEvalCount shouldBe 3
-    mapEvalCount("cons") shouldBe 3
     mapEvalCount("headTvs") shouldBe 3
     mapEvalCount("tailTvs") shouldBe 3
     mapEvalCount("headVal") shouldBe 3
@@ -77,7 +72,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     val stream = Stream.cons(countEval(1), Stream.cons(countEval(2), Stream.cons(countEval(3), Stream.empty)))
 
     localEvalCount shouldBe 0
-    mapEvalCount("cons") shouldBe 1
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 0
     mapEvalCount("headVal") shouldBe 0
@@ -85,7 +79,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
     stream.length shouldBe 3
     localEvalCount shouldBe 0
-    mapEvalCount("cons") shouldBe 3
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 3
     mapEvalCount("headVal") shouldBe 0
@@ -93,7 +86,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
     stream.length shouldBe 3
     localEvalCount shouldBe 0
-    mapEvalCount("cons") shouldBe 3
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 6
     mapEvalCount("headVal") shouldBe 0
@@ -109,12 +101,15 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     localEvalCount shouldBe 0
     // head is never traversed / evaluated, only passed to the new Stream
     // tail is only passed non-strict to the new Stream
-    mapEvalCount("cons") shouldBe 1
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 0
 
     // only through toList are heads and tails traversed
     stream12.toList shouldBe List(1, 2)
+  }
+
+  it should "only take as many elements as the Stream contains" in {
+    Stream(1, 2, 3).take(6).toList shouldBe List(1, 2, 3)
   }
 
   "Dropping the first n elements of a stream" should "only traverse the n first tails" in {
@@ -125,12 +120,62 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     localEvalCount shouldBe 0
     // head is never traversed / evaluated, only neglected or passed to the new Stream
     // tail is traversed n times and then passed non-strict to the new Stream
-    mapEvalCount("cons") shouldBe 1 + 2 // 1 from original stream creation and 2 to look into tails
     mapEvalCount("headTvs") shouldBe 0
     mapEvalCount("tailTvs") shouldBe 2
 
     // only through toList are heads traversed
     stream3.toList shouldBe List(3)
+  }
+
+  it should "only drop as many as there are" in {
+    Stream(1, 2, 3).drop(6).toList shouldBe List()
+  }
+
+  "Taking the first elements of a stream while a predicate is true" should "only evaluate the first head" in {
+    val stream = Stream.cons(countEval(1), Stream.cons(countEval(2), Stream.cons(countEval(3), Stream.empty)))
+
+    val stream12 = stream.takeWhile(_ < 3)
+
+    // only the first head will be evaluated, then takeWhile is called on tail in a non strict fashion
+    localEvalCount shouldBe 1
+    mapEvalCount("headTvs") shouldBe 1
+    mapEvalCount("headVal") shouldBe 1
+
+    // tail is not traversed but only passed no strict to the new Stream
+    mapEvalCount("tailTvs") shouldBe 0
+
+    stream12.toList shouldBe List(1, 2)
+  }
+
+  "Checking if a predicate is true for an element in a stream" should
+    "evaluate as many heads until if finds one being true" in {
+
+    val stream = Stream.cons(countEval(1), Stream.cons(countEval(2), Stream.cons(countEval(3), Stream.empty)))
+
+    stream.exists(_ == 2) shouldBe true
+
+    // only the first head will be evaluated, then takeWhile is called on tail in a non strict fashion
+    localEvalCount shouldBe 2
+    mapEvalCount("headTvs") shouldBe 2
+
+    // tail is not traversed but only passed no strict to the new Stream
+    mapEvalCount("tailTvs") shouldBe 1
+  }
+
+  "Checking if a predicate holds true for all elements" should "stop as soon as one is false" in {
+    Stream(1, 2, 3, 4).forAll(_ < 2) shouldBe false
+
+    mapEvalCount("headTvs") shouldBe 2
+    mapEvalCount("tailTvs") shouldBe 1
+  }
+
+  "Getting the first element of a Stream" should "only evaluate head and not touch tail" in {
+    Stream(1, 2, 3).headOption shouldBe Some(1)
+    mapEvalCount("headTvs") shouldBe 1
+    mapEvalCount("headVal") shouldBe 1
+    mapEvalCount("tailTvs") shouldBe 0
+
+    Stream.empty.headOption shouldBe None
   }
 
   def countEval(i: Int): Int = {
