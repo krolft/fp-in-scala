@@ -58,21 +58,21 @@ sealed trait Stream[+A] {
       f = (a, b) => p(a) && b)
       p = a < 2
 
-    Step 1: this = Cons(() => 1, tail)
+    Step 1: this = Cons(() => 1, () => tail)
 
-      f(1!, Cons(() => 2, tail).foldRight(true)(f))
-      p(1!) && Cons(() => 2, tail).foldRight(true)(f)
-      1! < 2 && Cons(() => 2, tail).foldRight(true)(f)
-      true && Cons(() => 2, tail).foldRight(true)(f)
-      // true && <right> // >>> right gets evaluated
+      f(1!, Cons(() => 2, () => tail).foldRight(true)(f))
+      p(1!) && Cons(() => 2, () => tail).foldRight(true)(f)
+      1! < 2 && Cons(() => 2, () => tail).foldRight(true)(f)
+      true && Cons(() => 2, () => tail).foldRight(true)(f)
+      // true && <right> // >>> right gets evaluated, which means tail gets traversed 1 time
 
-    Step 2: this = Cons(() => 2, tail)
+    Step 2: this = Cons(() => 2, () => tail)
 
-      true && f(2!, Cons(() => 3, tail).foldRight(true)(f)
-      true && p(2!) && Cons(() => 3, tail).foldRight(true)(f)
-      true && 2! < 2 && Cons(() => 3, tail).foldRight(true)(f)
-      true && false && Cons(() => 3, tail).foldRight(true)(f)
-      false && Cons(() => 3, tail).foldRight(true)(f)
+      true && f(2!, Cons(() => 3, () => tail).foldRight(true)(f)
+      true && p(2!) && Cons(() => 3, () => tail).foldRight(true)(f)
+      true && 2! < 2 && Cons(() => 3, () => tail).foldRight(true)(f)
+      true && false && Cons(() => 3, () => tail).foldRight(true)(f)
+      false && Cons(() => 3, () => tail).foldRight(true)(f)
       // false && <right> // >>> right is not evaluated
       false
 
@@ -95,14 +95,13 @@ sealed trait Stream[+A] {
     f is defined as follows
       f = (a, _) => Some(a)
 
-    Step 1: this = Cons(() => 1, tail)
+    Step 1: this = Cons(() => 1, () => tail)
 
-      f(1!, Cons(() => 2, tail).foldRight(None)(f))
-      // tail is never used / evaluated
-      Some(1!)
+      f(1!, Cons(() => 2, () => tail).foldRight(None)(f))
+      Some(1!) // <right> is not used which means tail is not traversed
 
     head needs to be evaluated 1 time
-    tail is never evaluated because it is not used by f
+    tail is never traversed because it is not used by f
    */
   def headOption: Option[A] =
     foldRight[Option[A]](None)((a, _) => Some(a))

@@ -174,6 +174,7 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     mapEvalCount("headTvs") shouldBe 1
     mapEvalCount("headVal") shouldBe 1
     mapEvalCount("tailTvs") shouldBe 0
+    mapEvalCount("tailVal") shouldBe 0
 
     Stream.empty.headOption shouldBe None
   }
