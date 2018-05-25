@@ -39,6 +39,7 @@ sealed trait Stream[+A] {
     case _ => false
   }
 
+  // b within f(a, b) can be thought of as the not yet recursively evaluated tail
   def foldRight[B](z: => B)(f: (A, => B) => B): B = this match {
     case Cons(h, t) => f(h(), t().foldRight(z)(f))
     case _ => z
@@ -60,19 +61,19 @@ sealed trait Stream[+A] {
 
     Step 1: this = Cons(() => 1, () => tail)
 
-      f(1!, Cons(() => 2, () => tail).foldRight(true)(f))
-      p(1!) && Cons(() => 2, () => tail).foldRight(true)(f)
-      1! < 2 && Cons(() => 2, () => tail).foldRight(true)(f)
-      true && Cons(() => 2, () => tail).foldRight(true)(f)
+      f(1!, Cons(() => 2, () => tail').foldRight(true)(f))
+      p(1!) && Cons(() => 2, () => tail').foldRight(true)(f)
+      1! < 2 && Cons(() => 2, () => tail').foldRight(true)(f)
+      true && Cons(() => 2, () => tail').foldRight(true)(f)
       // true && <right> // >>> right gets evaluated, which means tail gets traversed 1 time
 
     Step 2: this = Cons(() => 2, () => tail)
 
-      true && f(2!, Cons(() => 3, () => tail).foldRight(true)(f)
-      true && p(2!) && Cons(() => 3, () => tail).foldRight(true)(f)
-      true && 2! < 2 && Cons(() => 3, () => tail).foldRight(true)(f)
-      true && false && Cons(() => 3, () => tail).foldRight(true)(f)
-      false && Cons(() => 3, () => tail).foldRight(true)(f)
+      true && f(2!, Cons(() => 3, () => tail').foldRight(true)(f)
+      true && p(2!) && Cons(() => 3, () => tail').foldRight(true)(f)
+      true && 2! < 2 && Cons(() => 3, () => tail').foldRight(true)(f)
+      true && false && Cons(() => 3, () => tail').foldRight(true)(f)
+      false && Cons(() => 3, () => tail').foldRight(true)(f)
       // false && <right> // >>> right is not evaluated
       false
 
@@ -82,8 +83,8 @@ sealed trait Stream[+A] {
   def forAll(p: A => Boolean): Boolean =
     foldRight(true)((a, b) => p(a) && b)
 
-  def takeWhile(p: A => Boolean): Stream[A] =
-    foldRight(Stream.empty[A])((a, acc) => if (p(a)) Cons(() => a, () => acc) else acc)
+  def takeWhile(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
+    foldRight(Stream.empty[A])((a, acc) => if (p(a)) Stream.cons(a, acc) else acc)
 
   /*
     Input: Cons(() => 1, () => Cons(() => 2, () => Cons(() => 3, () => Empty)))
@@ -97,7 +98,7 @@ sealed trait Stream[+A] {
 
     Step 1: this = Cons(() => 1, () => tail)
 
-      f(1!, Cons(() => 2, () => tail).foldRight(None)(f))
+      f(1!, Cons(() => 2, () => tail').foldRight(None)(f))
       Some(1!) // <right> is not used which means tail is not traversed
 
     head needs to be evaluated 1 time
@@ -105,6 +106,44 @@ sealed trait Stream[+A] {
    */
   def headOption: Option[A] =
     foldRight[Option[A]](None)((a, _) => Some(a))
+
+  def map[B](f: A => B)(implicit evalCounter: Map[String, AtomicInteger]): Stream[B] =
+    foldRight[Stream[B]](Empty)((a, bs) => Stream.cons(f(a), bs))
+
+
+  /*
+    Input: Cons(() => 1, () => Cons(() => 2, () => Cons(() => 3, Cons(() => 4, () => Empty)))
+
+    foldRight body:
+      case Cons(h, t) => f(h(), t().foldRight(z)(f))
+      case _ => z
+
+    f is defined as follows
+      f = (a, acc) => if (p(a)) Stream.cons(a, acc) else acc)
+      p = a % 2 == 0
+
+    Step 1: this = Cons(() => 1, () => tail)
+      f(1!, Cons(() => 2, () => tail).foldRight(Empty)(f))
+      if (p(1!)) Stream.cons(a, Cons(() => 2, () => tail').foldRight(Empty)(f))
+        else Cons(() => 2, () => tail').foldRight(Empty)(f))
+      if (1! % 2 == 0)) Stream.cons(a, Cons(() => 2, () => tail').foldRight(Empty)(f))
+        else Cons(() => 2, () => tail').foldRight(Empty)(f)
+      Cons(() => 2, () => tail).foldRight(Empty)(f)
+
+    Step 2: this = Cons(() => 2, () => tail)
+      f(2!, Cons(() => 3, () => tail').foldRight(Empty)(f))
+      if (p(2!)) Stream.cons(a, Cons(() => 3, () => tail').foldRight(Empty)(f))
+        else Cons(() => 3, () => tail').foldRight(Empty)(f))
+      if (2! % 2 == 0)) Stream.cons(2, Cons(() => 3, () => tail').foldRight(Empty)(f))
+        else Cons(() => 3, () => tail').foldRight(Empty)(f)
+      Stream.cons(2!, Cons(() => 3, () => tail').foldRight(Empty)(f))
+      // head was evaluated two times (1 and 2)
+      // tail was evaluated once
+      // now the evaluation of the Stream stops
+      // in general: the evaluation stops with the predicate evaluating to true the first time
+   */
+  def filter(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
+    foldRight[Stream[A]](Empty)((a, acc) => if (p(a)) Stream.cons(a, acc) else acc)
 }
 
 case object Empty extends Stream[Nothing]

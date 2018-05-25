@@ -179,6 +179,30 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     Stream.empty.headOption shouldBe None
   }
 
+  "Mapping over a Stream" should "only evaluate first element and not touch tail" in {
+    val result = Stream(1, 2, 3).map(_.toString)
+
+    mapEvalCount("headTvs") shouldBe 1
+    mapEvalCount("headVal") shouldBe 1
+    mapEvalCount("tailTvs") shouldBe 0
+    mapEvalCount("tailVal") shouldBe 0
+
+    result.toList shouldBe List("1", "2", "3")
+
+    Stream.empty[Int].map(_.toString) shouldBe Empty
+  }
+
+  "Filtering a Stream" should "evaluates head and tail until first predicate match" in {
+    val result = Stream(1, 2, 3, 4, 5, 6, 7, 8).filter(_ % 3 == 0)
+
+    mapEvalCount("headTvs") shouldBe 3
+    mapEvalCount("headVal") shouldBe 3
+    mapEvalCount("tailTvs") shouldBe 2
+    mapEvalCount("tailVal") shouldBe 2
+
+    result.toList shouldBe List(3, 6)
+  }
+
   def countEval(i: Int): Int = {
     localEvalCount = localEvalCount + 1
     i
