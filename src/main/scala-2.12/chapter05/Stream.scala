@@ -1,6 +1,7 @@
 package chapter05
 
 import java.util.concurrent.atomic.AtomicInteger
+import Stream._
 
 sealed trait Stream[+A] {
   def headOptionCustom: Option[A] = this match {
@@ -13,24 +14,19 @@ sealed trait Stream[+A] {
     case Cons(h, t) => h() :: t().toList
   }
 
-  def length: Long = this match {
-    case Empty => 0
-    case Cons(_, t) => 1 + t().length
+  def take(n: Long)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] = this match {
+    case Cons(h, t) if n > 0 => cons(h(), t().take(n - 1))
+    case _ => empty
   }
 
-  def take(n: Long): Stream[A] = this match {
-    case Cons(h, t) if n > 0 => Cons(h, () => t().take(n - 1))
-    case _ => Empty
-  }
-
-  def drop(n: Long): Stream[A] = this match {
+  def drop(n: Long)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] = this match {
     case Cons(_, t) if n > 0 => t().drop(n - 1)
-    case Cons(h, t) if n <= 0 => Cons(h, () => t().drop(n))
+    case Cons(h, t) if n <= 0 => cons(h(), t().drop(n))
     case _ => Empty
   }
 
-  def takeWhileCustom(p: A => Boolean): Stream[A] = this match {
-    case Cons(h, t) if p(h()) => Cons(h, () => t().takeWhileCustom(p))
+  def takeWhileCustom(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] = this match {
+    case Cons(h, t) if p(h()) => cons(h(), t().takeWhileCustom(p))
     case _ => Empty
   }
 
@@ -84,7 +80,7 @@ sealed trait Stream[+A] {
     foldRight(true)((a, b) => p(a) && b)
 
   def takeWhile(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
-    foldRight(Stream.empty[A])((a, acc) => if (p(a)) Stream.cons(a, acc) else acc)
+    foldRight(empty[A])((a, acc) => if (p(a)) cons(a, acc) else empty)
 
   /*
     Input: Cons(() => 1, () => Cons(() => 2, () => Cons(() => 3, () => Empty)))
@@ -108,8 +104,7 @@ sealed trait Stream[+A] {
     foldRight[Option[A]](None)((a, _) => Some(a))
 
   def map[B](f: A => B)(implicit evalCounter: Map[String, AtomicInteger]): Stream[B] =
-    foldRight[Stream[B]](Empty)((a, bs) => Stream.cons(f(a), bs))
-
+    foldRight[Stream[B]](Empty)((a, bs) => cons(f(a), bs))
 
   /*
     Input: Cons(() => 1, () => Cons(() => 2, () => Cons(() => 3, Cons(() => 4, () => Empty)))
@@ -123,7 +118,7 @@ sealed trait Stream[+A] {
       p = a % 2 == 0
 
     Step 1: this = Cons(() => 1, () => tail)
-      f(1!, Cons(() => 2, () => tail).foldRight(Empty)(f))
+      f(1!, Cons(() => 2, () => tail').foldRight(Empty)(f))
       if (p(1!)) Stream.cons(a, Cons(() => 2, () => tail').foldRight(Empty)(f))
         else Cons(() => 2, () => tail').foldRight(Empty)(f))
       if (1! % 2 == 0)) Stream.cons(a, Cons(() => 2, () => tail').foldRight(Empty)(f))
@@ -137,13 +132,67 @@ sealed trait Stream[+A] {
       if (2! % 2 == 0)) Stream.cons(2, Cons(() => 3, () => tail').foldRight(Empty)(f))
         else Cons(() => 3, () => tail').foldRight(Empty)(f)
       Stream.cons(2!, Cons(() => 3, () => tail').foldRight(Empty)(f))
-      // head was evaluated two times (1 and 2)
-      // tail was evaluated once
-      // now the evaluation of the Stream stops
-      // in general: the evaluation stops with the predicate evaluating to true the first time
+
+    // head was evaluated two times (1 and 2)
+    // tail was evaluated once
+    // now the evaluation of the Stream stops
+    // in general: the evaluation stops with the predicate evaluating to true the first time
    */
   def filter(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
     foldRight[Stream[A]](Empty)((a, acc) => if (p(a)) Stream.cons(a, acc) else acc)
+
+  def append[AA >: A](xs: Stream[AA])(implicit evalCounter: Map[String, AtomicInteger]): Stream[AA] =
+    foldRight[Stream[AA]](xs)((a, acc) => cons(a, acc))
+
+  /*
+      correct as by https://github.com/fpinscala/fpinscala/blob/master/answers/src/main/scala/fpinscala/laziness/Stream.scala
+   */
+  def flatMap[B](g: A => Stream[B])(implicit evalCounter: Map[String, AtomicInteger]): Stream[B] =
+    foldRight[Stream[B]](Empty)((h, acc) => g(h) append acc)
+
+  def find(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Option[A] =
+    filter(p).headOption
+
+  def mapUsingUnfold[B](f: A => B)(implicit evalCounter: Map[String, AtomicInteger]): Stream[B] =
+    Stream.unfold[B, Stream[A]](this) {
+      case Cons(h, t) => Some(f(h()) -> t())
+      case Empty => None
+    }
+
+  def takeUsingUnfold(n: Int)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
+    Stream.unfold[A, (Int, Stream[A])]((n, this)) {
+      case (i, Cons(h, t)) if i > 0 => Some(h() -> (i - 1 -> t()))
+      case _ => None
+    }
+
+  def takeWhileUsingUnfold(p: A => Boolean)(implicit evalCounter: Map[String, AtomicInteger]): Stream[A] =
+    Stream.unfold[A, Stream[A]](this) {
+      case Cons(h, t) if p(h()) => Some(h() -> t())
+      case _ => None
+    }
+
+  def zipWith[B, C](stream: Stream[B])(f: (A, B) => C)(implicit evalCounter: Map[String, AtomicInteger]): Stream[C] =
+    Stream.unfold[C, (Stream[A], Stream[B])](this, stream) {
+      case (Cons(ha, ta), Cons(hb, tb)) => Some(f(ha(), hb()) -> (ta() -> tb()))
+      case _ => None
+    }
+
+  def zip[B](stream: Stream[B])(implicit evalCounter: Map[String, AtomicInteger]): Stream[(A, B)] =
+    Stream.unfold[(A, B), (Stream[A], Stream[B])](this, stream) {
+      case (Cons(ha, ta), Cons(hb, tb)) => Some(ha() -> hb(), ta() -> tb())
+      case _ => None
+    }
+
+  def zipAll[B](stream: Stream[B])(implicit evalCounter: Map[String, AtomicInteger]): Stream[(Option[A], Option[B])] =
+    zipAllWith(stream)(_ -> _)
+
+  def zipAllWith[B, C](stream: Stream[B])(f: (Option[A], Option[B]) => C)(implicit evalCounter: Map[String, AtomicInteger]): Stream[C] =
+    Stream.unfold[C, (Stream[A], Stream[B])](this, stream) {
+      case (Cons(ha, ta), Cons(hb, tb)) => Some(f(Some(ha()), Some(hb())), ta() -> tb())
+      case (Cons(ha, ta), Empty) => Some((f(Some(ha()), None), ta() -> Empty))
+      case (Empty, Cons(hb, tb)) => Some((f(None, Some(hb())), Empty -> tb()))
+      case _ => None
+    }
 }
 
 case object Empty extends Stream[Nothing]
@@ -176,4 +225,40 @@ object Stream {
       "tailVal" -> new AtomicInteger(),
       "headTvs" -> new AtomicInteger(),
       "tailTvs" -> new AtomicInteger())
+
+  private def noEvalCounter: Map[String, AtomicInteger] = Map()
+
+  val ones: Stream[Int] = cons(1, ones)(noEvalCounter)
+
+  def constant[A](a: A): Stream[A] =
+    cons(a, constant(a))(noEvalCounter)
+
+  def from(n: Int)(implicit cnts: Map[String, AtomicInteger]): Stream[Int] =
+    cons(n, from(n + 1))(cnts)
+
+  def fibs(): Stream[Int] = {
+    def go(a: Int, b: Int): Stream[Int] = {
+      cons(a, go(b, a + b))(noEvalCounter)
+    }
+
+    go(0, 1)
+  }
+
+  def unfold[A, S](z: S)(f: S => Option[(A, S)])(implicit cnts: Map[String, AtomicInteger]): Stream[A] =
+    f(z) match {
+      case Some((a, nextZ)) => cons(a, unfold(nextZ)(f))(cnts)
+      case _ => empty
+    }
+
+  def fibsUsingUnfold(): Stream[Int] =
+    unfold((0, 1)) { case (a, b) => Some((a, (b, a + b))) }(noEvalCounter)
+
+  def fromUsingUnfold(n: Int)(implicit cnts: Map[String, AtomicInteger]): Stream[Int] =
+    unfold(n)(i => Some((i, i + 1)))
+
+  def constantUsingUnfold[A](a: A): Stream[A] =
+    unfold(a)(_ => Some((a, a)))(noEvalCounter)
+
+  val onesUsingUnfold: Stream[Int] =
+    unfold(1)(_ => Some((1, 1)))(noEvalCounter)
 }

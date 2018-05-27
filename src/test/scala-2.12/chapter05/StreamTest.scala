@@ -11,6 +11,10 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
   implicit var mapInternalEvalCounter: Map[String, AtomicInteger] = _
 
   override def beforeEach() {
+    resetEvalCounter
+  }
+
+  def resetEvalCounter: Unit = {
     localEvalCount = 0
     mapInternalEvalCounter = Stream.createEvalCounter
   }
@@ -65,30 +69,6 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     mapEvalCount("headTvs") shouldBe 3
     mapEvalCount("tailTvs") shouldBe 3
     mapEvalCount("headVal") shouldBe 3
-    mapEvalCount("tailVal") shouldBe 3
-  }
-
-  "Getting the length of a Stream" should "not require to evaluate values and should only traverse the tail" in {
-    val stream = Stream.cons(countEval(1), Stream.cons(countEval(2), Stream.cons(countEval(3), Stream.empty)))
-
-    localEvalCount shouldBe 0
-    mapEvalCount("headTvs") shouldBe 0
-    mapEvalCount("tailTvs") shouldBe 0
-    mapEvalCount("headVal") shouldBe 0
-    mapEvalCount("tailVal") shouldBe 0
-
-    stream.length shouldBe 3
-    localEvalCount shouldBe 0
-    mapEvalCount("headTvs") shouldBe 0
-    mapEvalCount("tailTvs") shouldBe 3
-    mapEvalCount("headVal") shouldBe 0
-    mapEvalCount("tailVal") shouldBe 3
-
-    stream.length shouldBe 3
-    localEvalCount shouldBe 0
-    mapEvalCount("headTvs") shouldBe 0
-    mapEvalCount("tailTvs") shouldBe 6
-    mapEvalCount("headVal") shouldBe 0
     mapEvalCount("tailVal") shouldBe 3
   }
 
@@ -201,6 +181,103 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
     mapEvalCount("tailVal") shouldBe 2
 
     result.toList shouldBe List(3, 6)
+  }
+
+  "Appending a Stream" should "only evaluate first element" in {
+    val result = Stream(1, 2, 3).append(Stream(4, 5, 6))
+
+    mapEvalCount("headTvs") shouldBe 1
+    mapEvalCount("headVal") shouldBe 1
+    mapEvalCount("tailTvs") shouldBe 0
+    mapEvalCount("tailVal") shouldBe 0
+
+    result.toList shouldBe List(1, 2, 3, 4, 5, 6)
+  }
+
+  "Flat mapping a Stream" should "work" in {
+    val result = Stream(1, 2, 3).flatMap(i => Stream(i + 3))
+    result.toList shouldBe List(4, 5, 6)
+  }
+
+  "Finding an element of the stream" should "not traverse the whole stream even though filter is used" in {
+    Stream.cons(1, Stream.cons(2, Stream.cons(3, Stream.empty)))
+      .find(_ == 1) shouldBe Some(1)
+
+    // filter looks into head, creates a new stream and headOption looks into new stream
+    mapEvalCount("headTvs") shouldBe 2
+    mapEvalCount("headVal") shouldBe 2
+    mapEvalCount("tailTvs") shouldBe 0
+    mapEvalCount("tailVal") shouldBe 0
+  }
+
+  "Infinite Streams" should "do" in {
+    Stream.ones.take(3).toList shouldBe List(1, 1, 1)
+    Stream.ones.exists(_ % 2 != 0)
+
+    Stream.constant(1).take(3).toList shouldBe List(1, 1, 1)
+
+    Stream.from(3).take(3).toList shouldBe List(3, 4, 5)
+
+    Stream.fibs().take(7).toList shouldBe List(0, 1, 1, 2, 3, 5, 8)
+  }
+
+  "Unfold a Stream" should "should work for fibs()" in {
+    Stream.fibsUsingUnfold().take(7).toList shouldBe List(0, 1, 1, 2, 3, 5, 8)
+  }
+
+  it should "work for from()" in {
+    Stream.fromUsingUnfold(3).take(3).toList shouldBe List(3, 4, 5)
+  }
+
+  it should "work for constant()" in {
+    Stream.constantUsingUnfold(3).take(3).toList shouldBe List(3, 3, 3)
+  }
+
+  it should "work for ones()" in {
+    Stream.onesUsingUnfold.take(3).toList shouldBe List(1, 1, 1)
+  }
+
+  it should "work for map()" in {
+    Stream(1, 2, 3).map(_ + 3).toList shouldBe List(4, 5, 6)
+  }
+
+  it should "work for take()" in {
+    Stream(1, 2, 3, 4).takeUsingUnfold(2).toList shouldBe List(1, 2)
+  }
+
+  it should "work for takeWhile()" in {
+    val result = Stream.fromUsingUnfold(1).takeWhileUsingUnfold(_ < 5)
+    mapEvalCount("headTvs") shouldBe 2
+    mapEvalCount("headVal") shouldBe 1
+    mapEvalCount("tailTvs") shouldBe 1
+
+    result.toList shouldBe List(1, 2, 3, 4)
+  }
+
+  it should "work for zipWith()" in {
+    val result = Stream
+      .constantUsingUnfold(1)
+      .takeUsingUnfold(5)
+      .zipWith(
+        Stream
+          .fromUsingUnfold(10)
+          .takeUsingUnfold(3)
+      )((i, j) => (i + j).toString)
+
+    result.toList shouldBe List("11", "12", "13")
+  }
+
+  it should "work for zip()" in {
+    val result = Stream
+      .constantUsingUnfold(1)
+      .takeUsingUnfold(5)
+      .zip(
+        Stream
+          .fromUsingUnfold(10)
+          .takeUsingUnfold(3)
+      )
+
+    result.toList shouldBe List((1, 10), (1, 11), (1, 12))
   }
 
   def countEval(i: Int): Int = {
