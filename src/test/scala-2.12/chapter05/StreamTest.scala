@@ -312,7 +312,7 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
   "Creating all tails of a stream" should "work for examples" in {
     Stream(1, 2, 3, 4).tails.map(_.toList).toList shouldBe List(
-      List(1, 2, 3, 4), List(2, 3, 4), List(3, 4), List(4))
+      List(1, 2, 3, 4), List(2, 3, 4), List(3, 4), List(4), List())
   }
 
   def countEval(i: Int): Int = {

@@ -215,10 +215,10 @@ sealed trait Stream[+A] {
   }
 
   def tails(implicit evalCounter: Map[String, AtomicInteger]): Stream[Stream[A]] =
-    unfold[Stream[A], (Stream[A], Stream[Stream[A]])](this -> empty[Stream[A]]) {
-      case (stream @ Cons(_, t), streams) => Some(stream, (t(), streams))
+    unfold[Stream[A], Stream[A]](this) {
+      case stream @ Cons(_, t) => Some(stream, t())
       case _ => None
-    }
+    } append Stream(empty)
 
   def hasSubsequence[AA >: A](stream: Stream[AA]): Boolean = {
     implicit val nec: Map[String, AtomicInteger] = noEvalCounter
