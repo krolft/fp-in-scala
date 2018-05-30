@@ -193,6 +193,37 @@ sealed trait Stream[+A] {
       case (Empty, Cons(hb, tb)) => Some((f(None, Some(hb())), Empty -> tb()))
       case _ => None
     }
+
+  def hasSubsequenceUsingZipAndForAll[AA >: A](stream: Stream[AA]): Boolean = this match {
+    case Empty => false
+    case Cons(_, t) => zipWith(stream)((x, s) => if (x == s) 0 else 1)(noEvalCounter) match {
+      case res if res.forAll(_ == 0) => true
+      case _ => t().hasSubsequence(stream)
+    }
+  }
+
+  def startsWith[AA >: A](ys: Stream[AA]): Boolean = this match {
+    case Empty => false
+    case Cons(_, _) =>
+      this.zipAll(ys)(noEvalCounter)
+        .takeWhile {
+          case (_, y) => y.isDefined
+        }(noEvalCounter)
+        .forAll {
+          case (x, y) => x == y
+        }
+  }
+
+  def tails(implicit evalCounter: Map[String, AtomicInteger]): Stream[Stream[A]] =
+    unfold[Stream[A], (Stream[A], Stream[Stream[A]])](this -> empty[Stream[A]]) {
+      case (stream @ Cons(_, t), streams) => Some(stream, (t(), streams))
+      case _ => None
+    }
+
+  def hasSubsequence[AA >: A](stream: Stream[AA]): Boolean = {
+    implicit val nec: Map[String, AtomicInteger] = noEvalCounter
+    tails.exists(_.startsWith(stream))
+  }
 }
 
 case object Empty extends Stream[Nothing]

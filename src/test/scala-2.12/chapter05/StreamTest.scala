@@ -11,10 +11,10 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
   implicit var mapInternalEvalCounter: Map[String, AtomicInteger] = _
 
   override def beforeEach() {
-    resetEvalCounter
+    resetEvalCounter()
   }
 
-  def resetEvalCounter: Unit = {
+  def resetEvalCounter() {
     localEvalCount = 0
     mapInternalEvalCounter = Stream.createEvalCounter
   }
@@ -278,6 +278,41 @@ class StreamTest extends FlatSpec with Matchers with BeforeAndAfterEach {
       )
 
     result.toList shouldBe List((1, 10), (1, 11), (1, 12))
+  }
+
+  "Checking a Stream for subsequences" should "work for the example" in {
+    val stream = Stream(1, 2, 3, 4)
+
+    stream.hasSubsequence(Stream(1, 2)) shouldBe true
+    stream.hasSubsequence(Stream(2, 3)) shouldBe true
+    stream.hasSubsequence(Stream(4)) shouldBe true
+  }
+
+  it should "work for edge cases" in {
+    val stream = Stream(1, 2, 3, 4)
+
+    stream.hasSubsequence(Stream(1, 2, 3, 4)) shouldBe true
+    stream.hasSubsequence(Stream(1)) shouldBe true
+    stream.hasSubsequence(Stream()) shouldBe true
+    stream.hasSubsequence(Stream(2, 1)) shouldBe false
+    stream.hasSubsequence(Stream(5)) shouldBe false
+  }
+
+  "Checking a list for a start sequence" should "work for examples" in {
+    val stream = Stream(1, 2, 3, 4)
+
+    stream.startsWith(Stream()) shouldBe true
+    stream.startsWith(Stream(1)) shouldBe true
+    stream.startsWith(Stream(1, 2)) shouldBe true
+    stream.startsWith(Stream(1, 2, 3)) shouldBe true
+    stream.startsWith(Stream(1, 2, 3, 4)) shouldBe true
+
+    stream.startsWith(Stream(1, 3)) shouldBe false
+  }
+
+  "Creating all tails of a stream" should "work for examples" in {
+    Stream(1, 2, 3, 4).tails.map(_.toList).toList shouldBe List(
+      List(1, 2, 3, 4), List(2, 3, 4), List(3, 4), List(4))
   }
 
   def countEval(i: Int): Int = {

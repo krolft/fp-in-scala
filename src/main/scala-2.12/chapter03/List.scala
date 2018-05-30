@@ -343,5 +343,4 @@ object List {
     // we reverse the sequence first
     go(list.reverse, Nil)
   }
-
 }

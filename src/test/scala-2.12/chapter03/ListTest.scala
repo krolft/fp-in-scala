@@ -225,6 +225,7 @@ class ListTest extends FlatSpec with Matchers {
 
   it should "work for edge cases" in {
     List.hasSubsequence(List(1, 2, 3, 4), List(1, 2, 3, 4)) shouldBe true
+    List.hasSubsequence(List(1, 2, 3, 4), List(1)) shouldBe true
     List.hasSubsequence(List(1, 2, 3, 4), List()) shouldBe true
     List.hasSubsequence(List(1, 2, 3, 4), List(2, 1)) shouldBe false
     List.hasSubsequence(List(1, 2, 3, 4), List(5)) shouldBe false
