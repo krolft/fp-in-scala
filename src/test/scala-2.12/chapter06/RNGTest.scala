@@ -27,7 +27,7 @@ class RNGTest extends FlatSpec with Matchers {
     val rng = SimpleRNG(123L)
     val (ints, _) = RNG.ints(rng, 3)
     ints match {
-      case _ :: _ :: _ :: Nil =>
+      case _ :: _ :: _ :: Nil => ()
       case _ => fail
     }
   }
@@ -37,7 +37,7 @@ class RNGTest extends FlatSpec with Matchers {
     val rng = SimpleRNG(123L)
     val (ints, _) = RNG.intsUsingSequence(3)(rng)
     ints match {
-      case _ :: _ :: _ :: Nil =>
+      case _ :: _ :: _ :: Nil => ()
       case _ => fail
     }
   }

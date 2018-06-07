@@ -22,17 +22,31 @@ object RNG {
   def unit[A](a: A): Rand[A] =
     rng => (a, rng)
 
-  def map[A, B](s: Rand[A])(f: A => B): Rand[B] =
+  def mapCustom[A, B](s: Rand[A])(f: A => B): Rand[B] =
     rng => {
       val (a, nextRng) = s(rng)
       f(a) -> nextRng
     }
 
-  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] =
+    flatMap(s)(a => unit(f(a)))
+
+  def map2Custom[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
     rng => {
       val (a, rng2) = ra(rng)
       val (b, rng3) = rb(rng2)
       f(a, b) -> rng3
+    }
+
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    //flatMap(ra)(a => flatMap(rb)(b => unit(f(a, b))))
+    flatMap(ra)(a => map(rb)(b => f(a, b)))
+
+  def flatMap[A, B](s: Rand[A])(f: A => Rand[B]): Rand[B] =
+    rng => {
+      val (a, nextRng) = s(rng)
+      val rand = f(a)
+      rand(nextRng)
     }
 
   def sequenceTailRec[A](fs: List[Rand[A]]): Rand[List[A]] = startRng => {
@@ -48,13 +62,11 @@ object RNG {
 
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = startRng => {
     fs.foldRight(List[A]() -> startRng) {
-      case (rand, (list, rng)) => {
+      case (rand, (list, rng)) =>
         val (a, nextRng) = rand(rng)
         (a :: list) -> nextRng
-      }
     }
   }
-
 
   def nonNegativeInt: Rand[Int] = rng => {
     rng.nextInt() match {
@@ -66,6 +78,13 @@ object RNG {
 
   def nonNegativeEven: Rand[Int] =
     map(nonNegativeInt)(i => i - (i % 2))
+
+
+  def nonNegativeLessThan(n: Int): Rand[Int] =
+    flatMap(nonNegativeInt) { i =>
+      val mod = i % n
+      if (i + (n - 1) - mod >= 0) unit(mod) else nonNegativeLessThan(n)
+    }
 
   def doubleCustom(rng: RNG): (Double, RNG) = {
     val (n, nextRng) = nonNegativeInt(rng)
