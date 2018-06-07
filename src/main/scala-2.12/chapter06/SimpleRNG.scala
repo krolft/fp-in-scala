@@ -120,3 +120,26 @@ object RNG {
   def intsUsingSequence(count: Int): Rand[List[Int]] =
     sequence(List.fill(count)(int))
 }
+
+object RNG_USING_STATE_ACTION {
+
+  type Rand[+A] = StateAction[RNG, A]
+
+  val int: Rand[Int] = StateAction(_.nextInt())
+
+  def unit[A](a: A): Rand[A] = StateAction.unit(a)
+
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] = s.map(f)
+
+  def flatMap[A, B](s: Rand[A])(f: A => Rand[B]): Rand[B] = s.flatMap(f)
+
+  def sequence[A](list: List[Rand[A]]): Rand[List[A]] = StateAction.sequence(list)
+
+  def ints(count: Int): Rand[List[Int]] = sequence(List.fill(count)(int))
+
+  val ns: Rand[List[Int]] = for {
+    x <- int
+    y <- int
+    xs <- ints(x)
+  } yield xs.map(_ % y)
+}

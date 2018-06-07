@@ -3,9 +3,7 @@ package chapter06
 
 case class StateAction[S, +A](run: S => (A, S)) {
 
-  import StateAction._
-
-  // type StateAction[S, +A] = S => (A, S)
+  import StateAction.unit
 
   def map[B](f: A => B): StateAction[S, B] =
     flatMap(a => unit(f(a)))
