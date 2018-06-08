@@ -27,4 +27,13 @@ object StateAction {
         (a :: list, nextState)
     }
   })
+
+  def modify[S](f: S => S): StateAction[S, Unit] = for {
+    s <- get
+    _ <- set(f(s))
+  } yield ()
+
+  def get[S]: StateAction[S, S] = StateAction(s => (s, s))
+
+  def set[S](s: S): StateAction[S, Unit] = StateAction(_ => ((), s))
 }
