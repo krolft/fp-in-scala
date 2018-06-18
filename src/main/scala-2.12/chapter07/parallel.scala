@@ -1,7 +1,10 @@
 package chapter07
 
+import java.util.concurrent.{Callable, ExecutorService, Future, TimeUnit}
+
 import scala.concurrent.duration.TimeUnit
 
+/*
 class ExecutorService {
   def submit[A](a: Callable[A]): Future[A] = ???
 }
@@ -12,15 +15,12 @@ trait Callable[A] {
 
 trait Future[A] {
   def get: A
-
   def get(timeout: Long, unit: TimeUnit): A
-
   def cancel(evenIfRunning: Boolean): Boolean
-
   def isDone: Boolean
-
   def isCancelled: Boolean
 }
+*/
 
 private case class UnitFuture[A](value: A) extends Future[A] {
   override def get: A = value
@@ -49,9 +49,9 @@ object Par {
   def run[A](es: ExecutorService)(a: Par[A]): Future[A] = a(es)
 
   def map2[A, B, C](pa: Par[A], pb: Par[B])(f: (A, B) => C): Par[C] = es => {
-    val a = pa(es).get
-    val b = pb(es).get
-    UnitFuture(f(a, b))
+    val a = pa(es)
+    val b = pb(es)
+    UnitFuture(f(a.get, b.get))
   }
 
   def asyncF[A, B](f: A => B): A => Par[B] =
@@ -74,14 +74,13 @@ object Par {
     sequence(pbs)
   }
 
-  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = fork {
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] =
     as.foldRight(unit(List[A]()))(
       (a, pas) =>
         map2(asyncF(f)(a), pas) {
           (result, as) => if (result) a :: as else as
         }
     )
-  }
 
   def parFilterFromBook[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
     val pas = as.map(asyncF((a: A) => if (f(a)) a :: Nil else Nil)(_))
@@ -145,4 +144,7 @@ object Par {
     val parOfCToD: Par[C => D] = map2[A, B, C => D](pa, pb)((a, b) => curry(f)(a, b))
     map2(pc, parOfCToD)((c, cToD) => cToD(c))
   }
+
+  def equal[A](es: ExecutorService)(p1: Par[A], p2: Par[A]): Boolean =
+    p1(es).get(1, TimeUnit.SECONDS) == p2(es).get(1, TimeUnit.SECONDS)
 }
