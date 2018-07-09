@@ -1,8 +1,8 @@
-package chapter07
+package chapter07.blocking
 
 import java.util.concurrent.{Executors, TimeUnit, TimeoutException}
 
-import chapter07.Par._
+import chapter07.blocking.Par._
 import org.scalatest.{FlatSpec, Matchers}
 
 class ParallelTest extends FlatSpec with Matchers {

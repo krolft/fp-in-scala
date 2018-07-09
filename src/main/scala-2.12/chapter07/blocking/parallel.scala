@@ -1,4 +1,4 @@
-package chapter07
+package chapter07.blocking
 
 import java.util.concurrent.{Callable, ExecutorService, Future, TimeUnit}
 
