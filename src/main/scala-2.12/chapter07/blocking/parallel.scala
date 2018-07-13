@@ -147,4 +147,27 @@ object Par {
 
   def equal[A](es: ExecutorService)(p1: Par[A], p2: Par[A]): Boolean =
     p1(es).get(1, TimeUnit.SECONDS) == p2(es).get(1, TimeUnit.SECONDS)
+
+  def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    es =>
+      if (run(es)(cond).get) t(es) else f(es)
+
+  def choiceN[A](i: Par[Int])(choices: List[Par[A]]): Par[A] =
+    es =>
+      choices(run(es)(i).get())(es)
+
+  def choiceInTermsOfChoiceN[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    choiceN(map(cond)(c => if (c) 0 else 1))(List(t, f))
+
+  def choiceMap[K, V](key: Par[K])(choices: Map[K, Par[V]]): Par[V] =
+    es =>
+      choices(run(es)(key).get)(es)
+
+  // based on the result of a Par we want to select
+  def chooser[A, B](key: Par[A])(selector: A => Par[B]): Par[B] =
+    es =>
+      selector(run(es)(key).get)(es)
+
+  def choiceNInTermsOfChooser[A](i: Par[Int])(choices: List[Par[A]]): Par[A] =
+    chooser(i)(i => choices(i))
 }

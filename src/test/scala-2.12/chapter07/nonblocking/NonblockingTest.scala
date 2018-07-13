@@ -33,7 +33,8 @@ class NonblockingTest extends FlatSpec with Matchers {
   }
 
   "The map2 implementation" should "work for fixed size thread pools" in {
-    val p = parMap(List.range(1, 6000))(math.sqrt(_))
+    val p = parMap(List.range(1, 100000))(math.sqrt(_))
     Nonblocking.run(Executors.newFixedThreadPool(2))(p).sum > 1.0 shouldBe true
+    println(Actor.statistic())
   }
 }

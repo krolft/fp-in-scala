@@ -39,6 +39,7 @@ object Nonblocking {
 
   // ... this is why run needs to implement retrieving the resulting value
   def run[A](es: ExecutorService)(p: Par[A]): A = {
+    Actor.clearStatistic()
 
     // AtomicReference is usually used as a more lightweight / optimistic locking alternative to 'synchronized'
     // we don't make use of its 'compareAndSet' method, so I'm not sure if we really need it

@@ -1,8 +1,11 @@
 package chapter07.nonblocking
 
+import java.util.UUID
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
-import java.util.concurrent.{Callable,ExecutorService}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ExecutorService}
+
 import annotation.tailrec
+import scala.collection.concurrent.TrieMap
 
 /*
  * Implementation is taken from `scalaz` library, with only minor changes. See:
@@ -30,18 +33,19 @@ import annotation.tailrec
   * [[http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue]]
   *
   * @see scalaz.concurrent.Promise for a use case.
-  *
   * @param handler  The message handler
   * @param onError  Exception handler, called if the message handler throws any `Throwable`.
   * @param strategy Execution strategy, for example, a strategy that is backed by an `ExecutorService`
-  * @tparam A       The type of messages accepted by this actor.
+  * @tparam A The type of messages accepted by this actor.
   */
-final class Actor[A](strategy: Strategy)(handler: A => Unit, onError: Throwable => Unit = throw(_)) {
+final class Actor[A](strategy: Strategy)(handler: A => Unit, onError: Throwable => Unit = throw _) {
   self =>
 
   private val tail = new AtomicReference(new Node[A]())
   private val suspended = new AtomicInteger(1)
   private val head = new AtomicReference(tail.get)
+
+  private[nonblocking] val id = UUID.randomUUID()
 
   /** Alias for `apply` */
   def !(a: A) {
@@ -55,9 +59,6 @@ final class Actor[A](strategy: Strategy)(handler: A => Unit, onError: Throwable 
     this ! a
   }
 
-  def contramap[B](f: B => A): Actor[B] =
-    new Actor[B](strategy)((b: B) => (this ! f(b)), onError)
-
   private def trySchedule() {
     if (suspended.compareAndSet(1, 0)) schedule()
   }
@@ -67,6 +68,7 @@ final class Actor[A](strategy: Strategy)(handler: A => Unit, onError: Throwable 
   }
 
   private def act() {
+    updateStatistic()
     val t = tail.get
     val n = batchHandle(t, 1024)
     if (n ne t) {
@@ -91,15 +93,35 @@ final class Actor[A](strategy: Strategy)(handler: A => Unit, onError: Throwable 
       if (i > 0) batchHandle(n, i - 1) else n
     } else t
   }
+
+  private def updateStatistic(): Unit =
+    Actor.threads
+      .getOrElseUpdate(Thread.currentThread, new ConcurrentHashMap())
+      .computeIfAbsent(this.id.toString, _ => Unit)
+
 }
 
 private class Node[A](var a: A = null.asInstanceOf[A]) extends AtomicReference[Node[A]]
 
 object Actor {
 
+  private[nonblocking] def clearStatistic(): Unit = {
+    threads.clear()
+  }
+
+  private val threads: TrieMap[Thread, ConcurrentHashMap[String, Unit]] = TrieMap()
+
   /** Create an `Actor` backed by the given `ExecutorService`. */
-  def apply[A](es: ExecutorService)(handler: A => Unit, onError: Throwable => Unit = throw(_)): Actor[A] =
+  def apply[A](es: ExecutorService)(handler: A => Unit, onError: Throwable => Unit = throw _): Actor[A] = {
     new Actor(Strategy.fromExecutorService(es))(handler, onError)
+  }
+
+  private[nonblocking] def statistic() = {
+    import scala.collection.JavaConverters._
+
+    Map("threads" -> threads.map { case (t, m) => t -> m.size },
+      "actors" -> threads.toIterator.flatMap { case (_, m) => enumerationAsScalaIterator(m.keys()) }.toSet.size)
+  }
 }
 
 /**
@@ -113,25 +135,18 @@ trait Strategy {
 }
 
 object Strategy {
-
   /**
     * We can create a `Strategy` from any `ExecutorService`. It's a little more
     * convenient than submitting `Callable` objects directly.
     */
   def fromExecutorService(es: ExecutorService): Strategy = new Strategy {
     def apply[A](a: => A): () => A = {
-      val f = es.submit { new Callable[A] { def call = a} }
+      val f = es.submit {
+        new Callable[A] {
+          def call: A = a
+        }
+      }
       () => f.get
-    }
-  }
-
-  /**
-    * A `Strategy` which begins executing its argument immediately in the calling thread.
-    */
-  def sequential: Strategy = new Strategy {
-    def apply[A](a: => A): () => A = {
-      val r = a
-      () => r
     }
   }
 }
