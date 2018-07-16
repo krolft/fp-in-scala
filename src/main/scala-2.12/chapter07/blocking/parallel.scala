@@ -170,4 +170,25 @@ object Par {
 
   def choiceNInTermsOfChooser[A](i: Par[Int])(choices: List[Par[A]]): Par[A] =
     chooser(i)(i => choices(i))
+
+  def join[A](ppa: Par[Par[A]]): Par[A] = {
+    es =>
+      // implementation from book:
+      // 'run(es)(run(es)(ppa).get())'
+      // since run is implemented like this:
+      //   def run[A](es: ExecutorService)(a: Par[A]): Future[A] = a(es)
+      // it is semantically the same as my implementation:
+      run(es)(ppa).get()(es)
+  }
+
+  def flatMap[A, B](pa: Par[A])(f: A => Par[B]): Par[B] =
+    es =>
+      f(run(es)(pa).get)(es)
+
+  def flatMapUsingJoin[A, B](pa: Par[A])(f: A => Par[B]): Par[B] =
+    join(map(pa)(a => f(a)))
+
+  def joinUsingFlatMap[A](ppa: Par[Par[A]]): Par[A] =
+    flatMap(ppa)(pa => pa)
+
 }

@@ -141,12 +141,6 @@ object Nonblocking {
   def asyncF[A,B](f: A => B): A => Par[B] =
     a => lazyUnit(f(a))
 
-  def sequenceRight[A](as: List[Par[A]]): Par[List[A]] =
-    as match {
-      case Nil => unit(Nil)
-      case h :: t => map2(h, fork(sequence(t)))(_ :: _)
-    }
-
   def sequenceBalanced[A](as: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] = fork {
     if (as.isEmpty) unit(Vector())
     else if (as.length == 1) map(as.head)(a => Vector(a))
@@ -161,8 +155,5 @@ object Nonblocking {
 
   def parMap[A,B](as: List[A])(f: A => B): Par[List[B]] =
     sequence(as.map(asyncF(f)))
-
-  def parMap[A,B](as: IndexedSeq[A])(f: A => B): Par[IndexedSeq[B]] =
-    sequenceBalanced(as.map(asyncF(f)))
 }
 
