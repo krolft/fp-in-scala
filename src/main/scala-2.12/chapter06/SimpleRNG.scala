@@ -39,7 +39,7 @@ object RNG {
     }
 
   def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
-    //flatMap(ra)(a => flatMap(rb)(b => unit(f(a, b))))
+  //flatMap(ra)(a => flatMap(rb)(b => unit(f(a, b))))
     flatMap(ra)(a => map(rb)(b => f(a, b)))
 
   def flatMap[A, B](s: Rand[A])(f: A => Rand[B]): Rand[B] =
@@ -79,11 +79,16 @@ object RNG {
   def nonNegativeEven: Rand[Int] =
     map(nonNegativeInt)(i => i - (i % 2))
 
-
   def nonNegativeLessThan(n: Int): Rand[Int] =
     flatMap(nonNegativeInt) { i =>
       val mod = i % n
       if (i + (n - 1) - mod >= 0) unit(mod) else nonNegativeLessThan(n)
+    }
+
+  def intLessThan(n: Int): Rand[Int] =
+    flatMap(int) { i =>
+      val mod = i % n
+      if (i + (n - 1) - mod >= 0) unit(mod) else intLessThan(n)
     }
 
   def doubleCustom(rng: RNG): (Double, RNG) = {
@@ -93,7 +98,6 @@ object RNG {
 
   def double: Rand[Double] =
     map(nonNegativeInt)(i => i.toDouble / Int.MaxValue)
-
 
   def intsCustom(startRng: RNG, count: Int): (List[Int], RNG) = {
     // TODO is there a better way? Like Stream.unfold?
@@ -127,6 +131,20 @@ object RNG_USING_STATE_ACTION {
 
   val int: Rand[Int] = StateAction(_.nextInt())
 
+  val boolean: Rand[Boolean] =
+    map(int) { i =>
+      i % 2 == 0
+    }
+
+  def intLessThan(n: Int): Rand[Int] =
+    flatMap(int) { i =>
+      val mod = i % n
+      if (i + (n - 1) - mod >= 0) unit(mod) else intLessThan(n)
+    }
+
+  def intBetween(start: Int, stopExclusive: Int): Rand[Int] =
+    map(intLessThan(stopExclusive - start))(i => i + start)
+
   def unit[A](a: A): Rand[A] = StateAction.unit(a)
 
   def map[A, B](s: Rand[A])(f: A => B): Rand[B] = s.map(f)
@@ -136,6 +154,9 @@ object RNG_USING_STATE_ACTION {
   def sequence[A](list: List[Rand[A]]): Rand[List[A]] = StateAction.sequence(list)
 
   def ints(count: Int): Rand[List[Int]] = sequence(List.fill(count)(int))
+
+  def intsBetween(start: Int, stopExclusive: Int, count: Int): Rand[List[Int]] =
+    sequence(List.fill(count)(intBetween(start, stopExclusive)))
 
   val ns: Rand[List[Int]] = for {
     x <- int
