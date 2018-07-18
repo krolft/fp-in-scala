@@ -27,4 +27,11 @@ class GenTest extends FlatSpec with Matchers {
     ints.find(_ < start) shouldBe None
     ints.find(_ >= stop) shouldBe None
   }
+
+  "Generating a string" should "create a string with the specified length" in {
+    val generated = Gen.string(1000).sample.run(SimpleRNG(123L)) match {
+      case (str, _) => str
+    }
+    generated.length shouldBe 1000
+  }
 }
