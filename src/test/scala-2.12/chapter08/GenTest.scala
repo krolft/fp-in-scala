@@ -16,7 +16,22 @@ class GenTest extends FlatSpec with Matchers {
   "Generating a list of bounded ints" should "work for an example" in {
     val (start, stop) = (1, 10)
 
-    val gen = Gen.listOf(10000, Gen.choose(start, stop))
+    val gen = Gen.listOfN(10000, Gen.choose(start, stop))
+
+    val ints = gen.sample.run(SimpleRNG(123L)) match {
+      case (v, _) => v
+    }
+
+    (start until stop).foreach(ints.contains(_) shouldBe true)
+
+    ints.find(_ < start) shouldBe None
+    ints.find(_ >= stop) shouldBe None
+  }
+
+  it should "work for generated number of ints" in {
+    val (start, stop) = (1, 10)
+
+    val gen = Gen.choose(start, stop).listOfN(Gen.unit(10000))
 
     val ints = gen.sample.run(SimpleRNG(123L)) match {
       case (v, _) => v
