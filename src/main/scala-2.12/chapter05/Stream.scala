@@ -257,7 +257,7 @@ object Stream {
       "headTvs" -> new AtomicInteger(),
       "tailTvs" -> new AtomicInteger())
 
-  private def noEvalCounter: Map[String, AtomicInteger] = Map()
+  def noEvalCounter: Map[String, AtomicInteger] = Map()
 
   val ones: Stream[Int] = cons(1, ones)(noEvalCounter)
 
