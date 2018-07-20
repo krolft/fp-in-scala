@@ -8,6 +8,8 @@ case class Gen[A](sample: StateAction[RNG, A]) {
 
   def listOfN(size: Gen[Int]): Gen[List[A]] =
     size.flatMap(n => Gen.listOfN(n, this))
+
+  def unsized: SGen[A] = SGen(_ => this)
 }
 
 object Gen {
@@ -48,4 +50,21 @@ object Gen {
 
   def union[A](a: Gen[A], b: Gen[A]): Gen[A] =
     boolean.flatMap(if (_) a else b)
+}
+
+case class SGen[+A](forSize: Int => Gen[A])
+
+object SGen {
+  def choose(start: Int, stopExclusive: Int): SGen[Int] = Gen.choose(start, stopExclusive).unsized
+
+  def choosePair(start: Int, stop: Int): SGen[(Int, Int)] = Gen.choosePair(start, stop).unsized
+
+  def unit[A](a: => A): SGen[A] = Gen.unit(a).unsized
+
+  def boolean: SGen[Boolean] = Gen.boolean.unsized
+
+  def listOf[A](g: Gen[A]): SGen[List[A]] =
+    SGen(i => Gen.listOfN(i, g))
+
+  def string: SGen[String] = SGen(i => Gen.string(i))
 }
