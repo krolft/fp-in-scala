@@ -39,20 +39,22 @@ case class Prop(run: (TestCases, RNG) => Result) {
 object Prop {
 
   type TestCases = Int
-  type FailedCase = String
+  type FailedValue = String
+  type FailedLabel = Option[String]
+  type FailedCase = (FailedLabel, FailedValue)
   type SuccessCount = Int
 
   implicit val cnt: Map[String, AtomicInteger] = Stream.noEvalCounter
 
-  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
+  def forAll[A](as: Gen[A])(f: A => Boolean, label: Option[String] = None): Prop = Prop {
     (n, rng) =>
       randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
         case (a, i) => try {
           if (f(a)) Passed
-          else Failed(a.toString, i)
+          else Failed((label, a.toString), i)
         }
         catch {
-          case e: Exception => Failed(buildMsg(a, e), i)
+          case e: Exception => Failed(label -> buildMsg(a, e), i)
         }
       }.find(_.isFalsified).getOrElse(Passed)
   }

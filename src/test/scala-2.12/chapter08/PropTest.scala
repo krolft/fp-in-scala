@@ -13,9 +13,11 @@ class PropTest extends FlatSpec with Matchers {
 
   it should "work with &&" in {
     val gen = Gen.choose(-5, 5).listOfN(Gen.choose(2, 10))
-    val propTrue = Prop.forAll(gen)(list => list.reverse.reverse == list)
-    val propFalse = Prop.forAll(gen)(list => list.reverse == list)
+    val propTrue = Prop.forAll(gen)(list => list.reverse.reverse == list, Some("reversing reversed list"))
+    val propFalse = Prop.forAll(gen)(list => list.reverse == list, Some("reversing list"))
 
-    (propTrue && propFalse).run(5, SimpleRNG(123L)) shouldNot be(Passed)
+    (propTrue && propFalse).run(5, SimpleRNG(123L)) should matchPattern {
+      case Failed((Some("reversing list"), _), _) =>
+    }
   }
 }
