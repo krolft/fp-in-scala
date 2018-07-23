@@ -12,25 +12,32 @@ sealed trait Result {
 case object Passed extends Result {
   override def isFalsified: Boolean = false
 }
-case class Failed(failure: FailedCase, successes: SuccessCount) extends Result {
+case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
   override def isFalsified: Boolean = true
 }
 
-case class Prop(run: (TestCases, RNG) => Result) {
+case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
+  def tag(str: String): Prop = Prop { (m, n, rng) =>
+    run(m, n, rng) match {
+      case f: Falsified => f.copy(failure = s"$str\n${f.failure}")
+      case Passed => Passed
+    }
+  }
+
   def &&(p: Prop): Prop = {
-    Prop { (n, rng) =>
-      run(n, rng) match {
-        case f: Failed => f
-        case Passed => p.run(n, rng)
+    Prop { (m, n, rng) =>
+      run(m, n, rng) match {
+        case f: Falsified => f
+        case Passed => p.run(m, n, rng)
       }
     }
   }
 
   def ||(p: Prop): Prop = {
-    Prop { (n, rng) =>
-      run(n, rng) match {
+    Prop { (m, n, rng) =>
+      run(m, n, rng) match {
         case Passed => Passed
-        case _: Failed => p.run(n, rng)
+        case _: Falsified => p.run(m, n, rng)
       }
     }
   }
@@ -39,22 +46,19 @@ case class Prop(run: (TestCases, RNG) => Result) {
 object Prop {
 
   type TestCases = Int
-  type FailedValue = String
-  type FailedLabel = Option[String]
-  type FailedCase = (FailedLabel, FailedValue)
+  type MaxSize = Int
+  type FailedCase = String
   type SuccessCount = Int
 
   implicit val cnt: Map[String, AtomicInteger] = Stream.noEvalCounter
 
-  def forAll[A](as: Gen[A])(f: A => Boolean, label: Option[String] = None): Prop = Prop {
+  def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop {
     (n, rng) =>
       randomStream(as)(rng).zip(Stream.from(0)).take(n).map {
         case (a, i) => try {
-          if (f(a)) Passed
-          else Failed((label, a.toString), i)
-        }
-        catch {
-          case e: Exception => Failed(label -> buildMsg(a, e), i)
+          if (f(a)) Passed else Falsified(a.toString, i)
+        } catch {
+          case e: Exception => Falsified(buildMsg(a, e), i)
         }
       }.find(_.isFalsified).getOrElse(Passed)
   }
@@ -67,4 +71,21 @@ object Prop {
       s"generated an exception: ${e.getMessage}\n" +
       s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
 
+  def apply(f: (TestCases, RNG) => Result): Prop =
+    Prop { (_, n, rng) => f(n, rng) }
+
+  def forAll[A](g: SGen[A])(f: A => Boolean): Prop =
+    forAll(g(_))(f)
+
+  def forAll[A](g: Int => Gen[A])(f: A => Boolean): Prop = Prop {
+    (max, n, rng) =>
+      val casesPerSize = (n - 1) / max + 1
+      val props: Stream[Prop] =
+        Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
+      val prop: Prop =
+        props.map(p => Prop { (max, _, rng) =>
+          p.run(max, casesPerSize, rng)
+        }).toList.reduce(_ && _)
+      prop.run(max, n, rng)
+  }
 }

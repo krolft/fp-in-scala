@@ -6,18 +6,26 @@ import org.scalatest.{FlatSpec, Matchers}
 class PropTest extends FlatSpec with Matchers {
 
   "A Prop" should "be runnable" in {
-    val gen = Gen.choose(-5, 5).listOfN(Gen.choose(2, 10))
-    val prop = Prop.forAll(gen)(list => list.reverse.reverse == list)
-    prop.run(5, SimpleRNG(123L)) shouldBe Passed
+    val smallInt = Gen.choose(-10, 10)
+    val listOfSmallInts = SGen.listOf(smallInt)
+    val maxProp = Prop.forAll(listOfSmallInts) ( list =>
+      if (list.isEmpty) true
+      else {
+        val max = list.max
+        !list.exists(_ > max)
+      }
+    )
+    maxProp.run(100, 100, SimpleRNG(123L)) shouldBe Passed
   }
 
   it should "work with &&" in {
-    val gen = Gen.choose(-5, 5).listOfN(Gen.choose(2, 10))
-    val propTrue = Prop.forAll(gen)(list => list.reverse.reverse == list, Some("reversing reversed list"))
-    val propFalse = Prop.forAll(gen)(list => list.reverse == list, Some("reversing list"))
+    val smallInt = Gen.choose(-10, 10)
+    val listOfSmallInts = SGen.listOf(smallInt)
+    val propTrue = Prop.forAll(listOfSmallInts)(list => list.reverse.reverse == list).tag("True: reverse reversed")
+    val propFalse = Prop.forAll(listOfSmallInts)(list => list.reverse == list).tag("False: reverse")
 
-    (propTrue && propFalse).run(5, SimpleRNG(123L)) should matchPattern {
-      case Failed((Some("reversing list"), _), _) =>
+    (propTrue && propFalse).run(100, 100, SimpleRNG(123L)) should matchPattern {
+      case f: Falsified if f.failure.startsWith("False") =>
     }
   }
 }

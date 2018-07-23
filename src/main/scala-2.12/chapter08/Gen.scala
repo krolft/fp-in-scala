@@ -2,7 +2,7 @@ package chapter08
 
 import chapter06.{RNG, RNG_USING_STATE_ACTION, StateAction}
 
-case class Gen[A](sample: StateAction[RNG, A]) {
+case class Gen[+A](sample: StateAction[RNG, A]) {
   def flatMap[B](f: A => Gen[B]): Gen[B] =
     Gen(sample.map(f).flatMap(_.sample))
 
@@ -52,7 +52,9 @@ object Gen {
     boolean.flatMap(if (_) a else b)
 }
 
-case class SGen[+A](forSize: Int => Gen[A])
+case class SGen[+A](forSize: Int => Gen[A]) {
+  def apply(n: Int): Gen[A] = forSize(n)
+}
 
 object SGen {
   def choose(start: Int, stopExclusive: Int): SGen[Int] = Gen.choose(start, stopExclusive).unsized
