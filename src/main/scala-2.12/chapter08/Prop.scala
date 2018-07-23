@@ -3,7 +3,7 @@ package chapter08
 import java.util.concurrent.atomic.AtomicInteger
 
 import chapter05.Stream
-import chapter06.RNG
+import chapter06.{RNG, SimpleRNG}
 import chapter08.Prop._
 
 sealed trait Result {
@@ -37,7 +37,7 @@ case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
     Prop { (m, n, rng) =>
       run(m, n, rng) match {
         case Passed => Passed
-        case _: Falsified => p.run(m, n, rng)
+        case f: Falsified => p.tag(f.failure).run(m, n, rng)
       }
     }
   }
@@ -88,4 +88,8 @@ object Prop {
         }).toList.reduce(_ && _)
       prop.run(max, n, rng)
   }
+
+  def run(p: Prop, maxSize: Int = 100, testCases: Int = 100,
+          rng: RNG = SimpleRNG(System.currentTimeMillis())): Result =
+    p.run(maxSize, testCases, rng)
 }

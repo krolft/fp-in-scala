@@ -66,7 +66,10 @@ object SGen {
   def boolean: SGen[Boolean] = Gen.boolean.unsized
 
   def listOf[A](g: Gen[A]): SGen[List[A]] =
-    SGen(i => Gen.listOfN(i, g))
+    SGen(n => Gen.listOfN(n, g))
+
+  def listOf1[A](g: Gen[A]): SGen[List[A]] =
+    SGen(n => Gen.listOfN(n max 1, g))
 
   def string: SGen[String] = SGen(i => Gen.string(i))
 }
