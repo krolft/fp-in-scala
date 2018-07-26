@@ -24,4 +24,35 @@ class PropTest extends FlatSpec with Matchers {
       case f: Falsified if f.failure.startsWith("False") =>
     }
   }
+
+  it should "enable testing of List.sorted" in {
+    val smallInt = Gen.choose(-10, 10)
+    val listOfSmallInts = SGen.listOf(smallInt)
+
+    val sortedCompare = Prop.forAll(listOfSmallInts)(list => {
+      // my solution
+      //list.sorted.foldLeft(Int.MinValue -> true) { case ((last, valid), cur) => cur -> (valid && last <= cur) }._2
+
+      // usage of zip is inspired by book
+      list.sorted match {
+        case xs @ _ :: t => !xs.zip(t).exists { case (x, y) => x > y }
+        case Nil => true
+      }
+    }).tag("comparision")
+
+    val sortedTwice = Prop.forAll(listOfSmallInts)(list =>
+      list.sorted.sorted == list.sorted
+    ).tag("resorting")
+
+    val sortedLength = Prop.forAll(listOfSmallInts)(list =>
+      list.sorted.length == list.length
+    ).tag("length")
+
+    val sortedElements = Prop.forAll(listOfSmallInts)(list => {
+      val sortedList = list.sorted
+      sortedList.forall(list.contains) && list.forall(sortedList.contains)
+    }).tag("elements")
+
+    Prop.run(sortedCompare && sortedTwice && sortedLength && sortedElements) shouldBe Passed
+  }
 }
