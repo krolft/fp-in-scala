@@ -15,12 +15,15 @@ case object Passed extends Result {
 case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result {
   override def isFalsified: Boolean = true
 }
+case object Proved extends Result {
+  override def isFalsified: Boolean = false
+}
 
 case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
   def tag(str: String): Prop = Prop { (m, n, rng) =>
     run(m, n, rng) match {
       case f: Falsified => f.copy(failure = s"$str\n${f.failure}")
-      case Passed => Passed
+      case ok@(Passed | Proved) => ok
     }
   }
 
@@ -28,7 +31,11 @@ case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
     Prop { (m, n, rng) =>
       run(m, n, rng) match {
         case f: Falsified => f
-        case Passed => p.run(m, n, rng)
+        case ok@(Passed | Proved) => ok -> p.run(m, n, rng) match {
+          case (Proved, Proved) => Proved
+          case (_, f: Falsified) => f
+          case _ => Passed
+        }
       }
     }
   }
@@ -36,7 +43,7 @@ case class Prop(run: (MaxSize, TestCases, RNG) => Result) {
   def ||(p: Prop): Prop = {
     Prop { (m, n, rng) =>
       run(m, n, rng) match {
-        case Passed => Passed
+        case ok@(Passed | Proved) => ok
         case f: Falsified => p.tag(f.failure).run(m, n, rng)
       }
     }
@@ -87,6 +94,10 @@ object Prop {
           p.run(max, casesPerSize, rng)
         }).toList.reduce(_ && _)
       prop.run(max, n, rng)
+  }
+
+  def check(p: => Boolean): Prop = Prop { (_, _, _) =>
+    if (p) Proved else Falsified("()", 0)
   }
 
   def run(p: Prop, maxSize: Int = 100, testCases: Int = 100,

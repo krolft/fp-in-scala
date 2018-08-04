@@ -25,6 +25,17 @@ class PropTest extends FlatSpec with Matchers {
     }
   }
 
+  it should "compose a Passed and a Proved to a Passed" in {
+    val smallInt = Gen.choose(-10, 10)
+    val listOfSmallInts = SGen.listOf(smallInt)
+    val propPassed = Prop.forAll(listOfSmallInts)(list => list.reverse.reverse == list)
+    val propProved = Prop.check(true)
+
+    Prop.run(propPassed && propProved,maxSize = 1, testCases = 1) should matchPattern {
+      case Passed =>
+    }
+  }
+
   it should "enable testing of List.sorted" in {
     val smallInt = Gen.choose(-10, 10)
     val listOfSmallInts = SGen.listOf(smallInt)
